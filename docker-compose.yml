@@ -1,0 +1,79 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/fastapi_db
+      TEST_DATABASE_URL: postgresql://postgres:postgres@db:5432/fastapi_test_db
+      JWT_SECRET_KEY: "ebab06455b9ebe97a8b06d4657d9c55b5a2209dc39795e09db92c64ec35b4441"
+      JWT_REFRESH_SECRET_KEY: "a9d81553ec10b3216c69eb7b69c1abeddd5db45a73e75540d2e25d5eeea280f9"
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+      BCRYPT_ROUNDS: 12
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      OPENAI_MODEL: "gpt-4o-mini"
+      OPENAI_MAX_TOKENS: 1000
+      OPENAI_TEMPERATURE: 0.7
+      OPENAI_TIMEOUT: 30
+      YOUTUBE_API_KEY: "${YOUTUBE_API_KEY}"
+      MAX_CONVERSATION_HISTORY: 50
+      ENABLE_WEB_SEARCH: "true"
+      ENABLE_IMAGE_ANALYSIS: "true"
+      ENABLE_CODE_EXECUTION: "false"
+      MAX_REQUESTS_PER_MINUTE: 60
+      MAX_TOKENS_PER_REQUEST: 4000
+    command: >
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fastapi_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fastapi_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
